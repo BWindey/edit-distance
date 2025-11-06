@@ -1,4 +1,7 @@
 typedef unsigned int uint;
+typedef char bool;
+#define FALSE 0;
+#define TRUE 1;
 
 static inline uint MIN2(uint x, uint y) {
 	if (x < y) return x;
@@ -9,6 +12,58 @@ static inline uint MIN3(uint x, uint y, uint z) {
 	uint min_yz = MIN2(y, z);
 	uint min = MIN2(x, min_yz);
 	return min;
+}
+
+/* #include <stdio.h> */
+
+bool has_max_edit_distance(
+	char* t1, uint t1_len, char* t2, uint t2_len, uint max_distance
+) {
+	uint size_diff = t1_len > t2_len ? t1_len - t2_len : t2_len - t1_len;
+
+	/* We assume that 'max_distance' will be small, so no switching */
+	if (size_diff > max_distance) {
+		/* printf("Early stop because size-difference\n"); */
+		return FALSE;
+	}
+
+	/* To avoid having to copy data from the current row to the previous
+	 * row, we keep 2 rows with the variable 'row' pointing to the current one */
+	uint rows[2][t2_len + 1];
+	uint row = 0;
+
+	// Initialise table
+	rows[0][0] = 0;
+	for (uint j = 1; j <= t2_len; j++) {
+		rows[0][j] = j;
+	}
+
+	for (uint i = 1; i <= t1_len; i++) {
+		row = !row;
+		rows[row][0] = i;
+		uint min_distance = rows[row][0] > rows[row][t1_len]
+			? rows[row][0] : rows[row][t1_len];
+
+		for (uint j = 1; j <= t2_len; j++) {
+			char switch_cost = 1;
+			if (t1[i-1] == t2[j-1]) switch_cost = 0;
+
+			rows[row][j] = MIN3(
+				rows[!row][j-1] + switch_cost,
+				rows[!row][j] + 1,
+				rows[row][j-1] + 1
+			);
+			if (rows[row][j] < min_distance) {
+				min_distance = rows[row][j];
+			}
+		}
+		if (min_distance + size_diff > max_distance) {
+			/* printf("Early stop because min-distance on row + size-difference\n"); */
+			return FALSE;
+		}
+	}
+
+	return TRUE;
 }
 
 uint edit_distance(char* t1, uint t1_len, char* t2, uint t2_len) {
