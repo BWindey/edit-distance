@@ -4,8 +4,7 @@ typedef char bool;
 #define TRUE 1;
 
 static inline uint MIN2(uint x, uint y) {
-	if (x < y) return x;
-	return y;
+	return x < y ? x : y;
 }
 
 static inline uint MIN3(uint x, uint y, uint z) {
@@ -22,10 +21,7 @@ bool has_max_edit_distance(
 	uint size_diff = t1_len > t2_len ? t1_len - t2_len : t2_len - t1_len;
 
 	/* We assume that 'max_distance' will be small, so no switching */
-	if (size_diff > max_distance) {
-		/* printf("Early stop because size-difference\n"); */
-		return FALSE;
-	}
+	if (size_diff > max_distance) return FALSE;
 
 	/* To avoid having to copy data from the current row to the previous
 	 * row, we keep 2 rows with the variable 'row' pointing to the current one */
@@ -41,29 +37,21 @@ bool has_max_edit_distance(
 	for (uint i = 1; i <= t1_len; i++) {
 		row = !row;
 		rows[row][0] = i;
-		uint min_distance = rows[row][0] > rows[row][t1_len]
-			? rows[row][0] : rows[row][t1_len];
 
 		for (uint j = 1; j <= t2_len; j++) {
-			char switch_cost = 1;
-			if (t1[i-1] == t2[j-1]) switch_cost = 0;
-
-			rows[row][j] = MIN3(
-				rows[!row][j-1] + switch_cost,
-				rows[!row][j] + 1,
-				rows[row][j-1] + 1
-			);
-			if (rows[row][j] < min_distance) {
-				min_distance = rows[row][j];
+			if (t1[i-1] == t2[j-1]) {
+				rows[row][j] = rows[!row][j-1];
+			} else {
+				rows[row][j] = MIN3(
+					rows[!row][j-1] + 1,
+					rows[!row][j] + 1,
+					rows[row][j-1] + 1
+				);
 			}
-		}
-		if (min_distance + size_diff > max_distance) {
-			/* printf("Early stop because min-distance on row + size-difference\n"); */
-			return FALSE;
 		}
 	}
 
-	return TRUE;
+	return rows[row][t2_len] <= max_distance;
 }
 
 uint edit_distance(char* t1, uint t1_len, char* t2, uint t2_len) {
@@ -94,18 +82,58 @@ uint edit_distance(char* t1, uint t1_len, char* t2, uint t2_len) {
 		rows[row][0] = i;
 
 		for (uint j = 1; j <= t2_len; j++) {
-			char switch_cost = 1;
-			if (t1[i-1] == t2[j-1]) switch_cost = 0;
-
-			rows[row][j] = MIN3(
-				rows[!row][j-1] + switch_cost,
-				rows[!row][j] + 1,
-				rows[row][j-1] + 1
-			);
+			if (t1[i-1] == t2[j-1]) {
+				rows[row][j] = rows[!row][j-1];
+			} else {
+				rows[row][j] = MIN3(
+					rows[!row][j-1] + 1,
+					rows[!row][j] + 1,
+					rows[row][j-1] + 1
+				);
+			}
 		}
 	}
 
 	return rows[row][t2_len];
+}
+
+/* This function assumes that t1 and t2 are shorter then 33 chars */
+/* TODO: benchmark, and why does this work again? */
+uint edit_distance32(char* t1, uint t1_len, char* t2, uint t2_len) {
+	uint peq[128] = { 0 };
+	if (t1_len < t2_len) {
+		char* _t = t1;
+		t1 = t2;
+		t2 = _t;
+
+		uint _tl = t1_len;
+		t1_len = t2_len;
+		t2_len = _tl;
+	}
+	const uint lst = 1 << (t1_len - 1);
+	uint pv = -1;
+	uint mv = 0;
+	uint sc = t1_len;
+	uint i = t1_len;
+
+	while (i--) {
+		peq[t1[i]] |= 1 << i;
+	}
+
+	for (i = 0; i < t2_len; i++) {
+		uint eq = peq[t2[i]];
+		uint xv = eq | mv;
+		eq |= ((eq & pv) + pv) ^ pv;
+		mv |= ~(eq | pv);
+		pv &= eq;
+		if (mv & lst) sc++;
+		if (pv & lst) sc--;
+		mv = (mv << 1) | 1;
+		pv = (pv << 1) | ~(xv | mv);
+		mv &= xv;
+	}
+
+	return sc;
 }
 
 #ifndef LIBRARY
@@ -122,9 +150,11 @@ int main(int argc, char** argv) {
 	char* t2 = argv[2];
 	unsigned long t2_len = strlen(t2);
 
-	uint e_d = edit_distance(t1, t1_len, t2, t2_len);
+	uint e_d1 = edit_distance(t1, t1_len, t2, t2_len);
+	uint e_d2 = edit_distance32(t1, t1_len, t2, t2_len);
 
-	printf("Edit distance: %u\n", e_d);
+	printf("Edit distance:    %u\n", e_d1);
+	printf("Edit distance_32: %u\n", e_d2);
 
 	return 0;
 }

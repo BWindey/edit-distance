@@ -26,14 +26,15 @@ uint edit_distance_table(char* t1, uint t1_len, char* t2, uint t2_len) {
 
 	for (uint i = 1; i <= t1_len; i++) {
 		for (uint j = 1; j <= t2_len; j++) {
-			char switch_cost = 1;
-			if (t1[i-1] == t2[j-1]) switch_cost = 0;
-
-			table[i][j] = MIN3(
-				table[i-1][j-1] + switch_cost,
-				table[i-1][j] + 1,
-				table[i][j-1] + 1
-			);
+			if (t1[i-1] == t2[j-1]) {
+				table[i][j] = table[i-1][j-1];
+			} else {
+				table[i][j] = MIN3(
+					table[i-1][j-1] + 1,
+					table[i-1][j] + 1,
+					table[i][j-1] + 1
+				);
+			}
 		}
 	}
 
