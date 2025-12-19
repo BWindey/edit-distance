@@ -94,3 +94,10 @@ The `normal` benchmark uses `edit_distance(word1, word2) <= k`, while the
 which is an edited version of `edit_distance()` that can return early.
 
 The used benchmark code is still available under `misc/test.c3`.
+
+
+# Best aproximate match
+I included this C program too because it's basically the same algorithm as
+the edit-distance, just with a different initialization. I only bothered to
+implement the visual table version because I don't actually see any future
+usecase yet, just wanted to check my manual work with a computer program.
